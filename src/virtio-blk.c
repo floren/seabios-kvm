@@ -28,6 +28,7 @@ struct virtiodrive_s {
 static int
 virtio_blk_op(struct disk_op_s *op, int write)
 {
+    int i = 0;
     struct virtiodrive_s *vdrive_g =
         container_of(op->drive_g, struct virtiodrive_s, drive);
     struct vring_virtqueue *vq = GET_GLOBAL(vdrive_g->vq);
@@ -51,7 +52,7 @@ virtio_blk_op(struct disk_op_s *op, int write)
             .length	= sizeof(status),
         },
     };
-
+dprintf(3, "in virtio_blk_op\n");
     /* Add to virtqueue and kick host */
     if (write)
         vring_add_buf(vq, sg, 2, 1, 0, 0);
@@ -60,9 +61,15 @@ virtio_blk_op(struct disk_op_s *op, int write)
     vring_kick(GET_GLOBAL(vdrive_g->ioaddr), vq, 1);
 
     /* Wait for reply */
-    while (!vring_more_used(vq))
+    while (!vring_more_used(vq)) {
         usleep(5);
-
+	if (++i > 1000) {
+		vring_kick(GET_GLOBAL(vdrive_g->ioaddr), vq, 1);
+		i = 0;
+		dprintf(1, "THIS SHOULD NEVER HAPPEN! Re-kicking virtio queue!\n");
+	}
+    }
+dprintf(3, "got reply\n");
     /* Reclaim virtqueue element */
     vring_get_buf(vq, NULL);
 
@@ -77,8 +84,8 @@ virtio_blk_op(struct disk_op_s *op, int write)
 int
 process_virtio_blk_op(struct disk_op_s *op)
 {
-    if (! CONFIG_VIRTIO_BLK || CONFIG_COREBOOT)
-        return 0;
+//    if (! CONFIG_VIRTIO_BLK || CONFIG_COREBOOT)
+//        return 0;
     switch (op->command) {
     case CMD_READ:
         return virtio_blk_op(op, 0);
@@ -100,7 +107,7 @@ static void
 init_virtio_blk(struct pci_device *pci)
 {
     u16 bdf = pci->bdf;
-    dprintf(1, "found virtio-blk at %x:%x\n", pci_bdf_to_bus(bdf),
+    dprintf(3, "found virtio-blk at %x:%x\n", pci_bdf_to_bus(bdf),
             pci_bdf_to_dev(bdf));
     struct virtiodrive_s *vdrive_g = malloc_fseg(sizeof(*vdrive_g));
     if (!vdrive_g) {
@@ -159,10 +166,8 @@ void
 virtio_blk_setup(void)
 {
     ASSERT32FLAT();
-    if (! CONFIG_VIRTIO_BLK || CONFIG_COREBOOT)
-        return;
-
-    dprintf(3, "init virtio-blk\n");
+//    if (! CONFIG_VIRTIO_BLK || CONFIG_COREBOOT)
+//        return;
 
     struct pci_device *pci;
     foreachpci(pci) {

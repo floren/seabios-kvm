@@ -68,6 +68,7 @@ u8 no_tsc VAR16VISIBLE;
 static void
 calibrate_tsc(void)
 {
+if (0) {
     u32 eax, ebx, ecx, edx, cpuid_features = 0;
     cpuid(0, &eax, &ebx, &ecx, &edx);
     if (eax > 0)
@@ -106,6 +107,8 @@ calibrate_tsc(void)
     SET_GLOBAL(cpu_khz, hz / 1000);
 
     dprintf(1, "CPU Mhz=%u\n", hz / 1000000);
+}
+SET_GLOBAL(cpu_khz, 2128000);
 }
 
 static u64

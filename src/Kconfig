@@ -108,7 +108,7 @@ menu "Hardware support"
         help
             Support for AHCI disk code.
     config VIRTIO_BLK
-        depends on DRIVES && !COREBOOT
+        depends on DRIVES
         bool "virtio-blk controllers"
         default y
         help
@@ -298,13 +298,13 @@ endmenu
 
 menu "BIOS Tables"
     config PIRTABLE
-        depends on !COREBOOT
+#        depends on !COREBOOT
         bool "PIR table"
         default y
         help
             Support generation of a PIR table in 0xf000 segment.
     config MPTABLE
-        depends on !COREBOOT
+#        depends on !COREBOOT
         bool "MPTable"
         default y
         help
@@ -316,7 +316,7 @@ menu "BIOS Tables"
             Support generation of SM BIOS tables.  This is also
             sometimes called DMI.
     config ACPI
-        depends on !COREBOOT
+#        depends on !COREBOOT
         bool "ACPI"
         default y
         help

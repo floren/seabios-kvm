@@ -179,9 +179,9 @@ coreboot_fill_map(void)
 fail:
     // No table found..  Use 16Megs as a dummy value.
     dprintf(1, "Unable to find coreboot table!\n");
-    RamSize = 16*1024*1024;
+    RamSize = 512*1024*1024;
     RamSizeOver4G = 0;
-    add_e820(0, 16*1024*1024, E820_RAM);
+    add_e820(0, RamSize, E820_RAM);
     return;
 }
 

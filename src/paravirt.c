@@ -46,8 +46,8 @@ void qemu_cfg_port_probe(void)
     char *sig = "QEMU";
     int i;
 
-    if (CONFIG_COREBOOT)
-        return;
+//    if (CONFIG_COREBOOT)
+//        return;
 
     qemu_cfg_present = 1;
 

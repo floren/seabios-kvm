@@ -157,10 +157,10 @@ ram_probe(void)
 static void
 init_bios_tables(void)
 {
-    if (CONFIG_COREBOOT) {
-        coreboot_copy_biostable();
-        return;
-    }
+//    if (CONFIG_COREBOOT) {
+//        coreboot_copy_biostable();
+//        return;
+//    }
     if (usingXen()) {
 	xen_copy_biostables();
 	return;
