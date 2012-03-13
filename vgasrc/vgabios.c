@@ -1,15 +1,9 @@
 // VGA bios implementation
 //
-// Copyright (C) 2009  Kevin O'Connor <kevin@koconnor.net>
+// Copyright (C) 2009-2012  Kevin O'Connor <kevin@koconnor.net>
 // Copyright (C) 2001-2008 the LGPL VGABios developers Team
 //
 // This file may be distributed under the terms of the GNU LGPLv3 license.
-
-
-// TODO:
-//  * review correctness of converted asm by comparing with RBIL
-//
-//  * convert vbe/clext code
 
 #include "bregs.h" // struct bregs
 #include "biosvar.h" // GET_BDA
@@ -23,10 +17,6 @@
 #include "vbe.h" // VBE_RETURN_STATUS_FAILED
 #include "pci.h" // pci_config_readw
 #include "pci_regs.h" // PCI_VENDOR_ID
-
-// XXX
-#define DEBUG_VGA_POST 1
-#define DEBUG_VGA_10 3
 
 // Standard Video Save Pointer Table
 struct VideoSavePointer_s {
@@ -46,7 +36,7 @@ struct VideoParam_s video_param_table[29] VAR16;
 /****************************************************************
  * PCI Data
  ****************************************************************/
-#if CONFIG_VGA_PCI == 1
+
 struct pci_data rom_pci_data VAR16VISIBLE = {
     .signature = PCI_ROM_SIGNATURE,
     .vendor = CONFIG_VGA_VID,
@@ -57,7 +47,7 @@ struct pci_data rom_pci_data VAR16VISIBLE = {
     .type = PCIROM_CODETYPE_X86,
     .indicator = 0x80,
 };
-#endif
+
 
 /****************************************************************
  * Helper functions
@@ -125,12 +115,14 @@ get_cursor_shape(u8 page)
 static void
 set_cursor_pos(struct cursorpos cp)
 {
+    u8 page = cp.page, x = cp.x, y = cp.y;
+
     // Should not happen...
-    if (cp.page > 7)
+    if (page > 7)
         return;
 
     // Bios cursor pos
-    SET_BDA(cursor_pos[cp.page], (cp.y << 8) | cp.x);
+    SET_BDA(cursor_pos[page], (y << 8) | x);
 
     // Set the hardware cursor
     u8 current = GET_BDA(video_page);
@@ -138,8 +130,8 @@ set_cursor_pos(struct cursorpos cp)
         return;
 
     // Calculate the memory address
-    int address = (GET_BDA(video_pagesize) * cp.page
-                   + (cp.x + cp.y * GET_BDA(video_cols)) * 2);
+    int address = (GET_BDA(video_pagesize) * page
+                   + (x + y * GET_BDA(video_cols)) * 2);
     stdvga_set_cursor_pos(address);
 }
 
@@ -170,7 +162,7 @@ set_active_page(u8 page)
     if (!vmode_g)
         return;
 
-    // Get pos curs pos for the right page
+    // Get cursor pos for the given page
     struct cursorpos cp = get_cursor_pos(page);
 
     // Calculate memory address of start of page
@@ -244,9 +236,9 @@ write_teletype(struct cursorpos *pcp, struct carattr ca)
         cp.y++;
         break;
     case '\t':
+        ca.car = ' ';
         do {
-            struct carattr dummyca = {' ', ca.attr, ca.use_attr};
-            vgafb_write_char(cp, dummyca);
+            vgafb_write_char(cp, ca);
             cp.x++;
         } while (cp.x < nbcols && cp.x % 8);
         break;
@@ -269,34 +261,6 @@ write_teletype(struct cursorpos *pcp, struct carattr ca)
     cp.y--;
     *pcp = cp;
     scroll_one(nbrows, nbcols, cp.page);
-}
-
-// Write out a buffer of alternating characters and attributes.
-static void
-write_attr_string(struct cursorpos *pcp, u16 count, u16 seg, u8 *offset_far)
-{
-    while (count--) {
-        u8 car = GET_FARVAR(seg, *offset_far);
-        offset_far++;
-        u8 attr = GET_FARVAR(seg, *offset_far);
-        offset_far++;
-
-        struct carattr ca = {car, attr, 1};
-        write_teletype(pcp, ca);
-    }
-}
-
-// Write out a buffer of characters.
-static void
-write_string(struct cursorpos *pcp, u8 attr, u16 count, u16 seg, u8 *offset_far)
-{
-    while (count--) {
-        u8 car = GET_FARVAR(seg, *offset_far);
-        offset_far++;
-
-        struct carattr ca = {car, attr, 1};
-        write_teletype(pcp, ca);
-    }
 }
 
 
@@ -502,24 +466,24 @@ handle_1005(struct bregs *regs)
 static void
 verify_scroll(struct bregs *regs, int dir)
 {
-    u8 page = GET_BDA(video_page);
-    struct cursorpos ul = {regs->cl, regs->ch, page};
-    struct cursorpos lr = {regs->dl, regs->dh, page};
-
+    u8 ulx = regs->cl, uly = regs->ch, lrx = regs->dl, lry = regs->dh;
     u16 nbrows = GET_BDA(video_rows) + 1;
-    if (lr.y >= nbrows)
-        lr.y = nbrows - 1;
+    if (lry >= nbrows)
+        lry = nbrows - 1;
     u16 nbcols = GET_BDA(video_cols);
-    if (lr.x >= nbcols)
-        lr.x = nbcols - 1;
+    if (lrx >= nbcols)
+        lrx = nbcols - 1;
 
-    if (ul.x > lr.x || ul.y > lr.y)
+    if (ulx > lrx || uly > lry)
         return;
 
-    u16 nblines = regs->al;
-    if (!nblines || nblines > lr.y - ul.y + 1)
-        nblines = lr.y - ul.y + 1;
+    int nblines = regs->al;
+    if (!nblines || nblines > lry - uly + 1)
+        nblines = lry - uly + 1;
 
+    u8 page = GET_BDA(video_page);
+    struct cursorpos ul = {ulx, uly, page};
+    struct cursorpos lr = {lrx, lry, page};
     vgafb_scroll(dir * nblines, regs->bh, ul, lr);
 }
 
@@ -546,10 +510,15 @@ handle_1008(struct bregs *regs)
 static void noinline
 write_chars(u8 page, struct carattr ca, u16 count)
 {
+    u16 nbcols = GET_BDA(video_cols);
     struct cursorpos cp = get_cursor_pos(page);
     while (count--) {
         vgafb_write_char(cp, ca);
         cp.x++;
+        if (cp.x >= nbcols) {
+            cp.x -= nbcols;
+            cp.y++;
+        }
     }
 }
 
@@ -875,7 +844,7 @@ handle_101130(struct bregs *regs)
     regs->cx = GET_BDA(char_height) & 0xff;
 
     // Set Highest char row
-    regs->dx = GET_BDA(video_rows);
+    regs->dl = GET_BDA(video_rows);
 }
 
 static void
@@ -1024,17 +993,29 @@ handle_1012(struct bregs *regs)
 static void noinline
 handle_1013(struct bregs *regs)
 {
-    struct cursorpos cp = {regs->dl, regs->dh, regs->bh};
-    // if row=0xff special case : use current cursor position
-    if (cp.y == 0xff)
-        cp = get_cursor_pos(cp.page);
-    u8 flag = regs->al;
-    if (flag & 2)
-        write_attr_string(&cp, regs->cx, regs->es, (void*)(regs->bp + 0));
+    struct cursorpos cp;
+    if (regs->dh == 0xff)
+        // if row=0xff special case : use current cursor position
+        cp = get_cursor_pos(regs->bh);
     else
-        write_string(&cp, regs->bl, regs->cx, regs->es, (void*)(regs->bp + 0));
+        cp = (struct cursorpos) {regs->dl, regs->dh, regs->bh};
 
-    if (flag & 1)
+    u16 count = regs->cx;
+    u8 *offset_far = (void*)(regs->bp + 0);
+    u8 attr = regs->bl;
+    while (count--) {
+        u8 car = GET_FARVAR(regs->es, *offset_far);
+        offset_far++;
+        if (regs->al & 2) {
+            attr = GET_FARVAR(regs->es, *offset_far);
+            offset_far++;
+        }
+
+        struct carattr ca = {car, attr, 1};
+        write_teletype(&cp, ca);
+    }
+
+    if (regs->al & 1)
         set_cursor_pos(cp);
 }
 
@@ -1243,6 +1224,8 @@ int HaveRunInit VAR16;
 void VISIBLE16
 vga_post(struct bregs *regs)
 {
+    debug_serial_setup();
+    dprintf(1, "Start SeaVGABIOS (version %s)\n", VERSION);
     debug_enter(regs, DEBUG_VGA_POST);
 
     if (CONFIG_VGA_PCI && !GET_GLOBAL(HaveRunInit)) {
@@ -1272,13 +1255,12 @@ vga_post(struct bregs *regs)
     extern void entry_10(void);
     SET_IVT(0x10, SEGOFF(get_global_seg(), (u32)entry_10));
 
-    // XXX - clear screen and display info
-
     SET_VGA(HaveRunInit, 1);
 
     // Fixup checksum
     extern u8 _rom_header_size, _rom_header_checksum;
     SET_VGA(_rom_header_checksum, 0);
-    u8 sum = -checksum_far(get_global_seg(), 0, _rom_header_size * 512);
+    u8 sum = -checksum_far(get_global_seg(), 0,
+                           GET_GLOBAL(_rom_header_size) * 512);
     SET_VGA(_rom_header_checksum, sum);
 }
