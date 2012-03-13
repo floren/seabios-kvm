@@ -1,0 +1,65 @@
+#
+# Automatically generated make config: don't edit
+# SeaBIOS Configuration
+# Mon Mar 12 17:16:38 2012
+#
+
+#
+# General Features
+#
+CONFIG_COREBOOT=y
+# CONFIG_THREADS is not set
+# CONFIG_RELOCATE_INIT is not set
+# CONFIG_BOOTMENU is not set
+# CONFIG_BOOTORDER is not set
+# CONFIG_COREBOOT_FLASH is not set
+
+#
+# Hardware support
+#
+# CONFIG_ATA is not set
+# CONFIG_AHCI is not set
+CONFIG_VIRTIO_BLK=y
+# CONFIG_FLOPPY is not set
+# CONFIG_USB is not set
+CONFIG_SERIAL=y
+# CONFIG_LPT is not set
+
+#
+# BIOS interfaces
+#
+CONFIG_DRIVES=y
+# CONFIG_CDROM_BOOT is not set
+# CONFIG_PCIBIOS is not set
+# CONFIG_APMBIOS is not set
+# CONFIG_PNPBIOS is not set
+# CONFIG_OPTIONROMS is not set
+CONFIG_BOOT=y
+# CONFIG_KEYBOARD is not set
+# CONFIG_MOUSE is not set
+# CONFIG_S3_RESUME is not set
+# CONFIG_VGAHOOKS is not set
+# CONFIG_DISABLE_A20 is not set
+
+#
+# BIOS Tables
+#
+CONFIG_PIRTABLE=y
+# CONFIG_MPTABLE is not set
+# CONFIG_SMBIOS is not set
+# CONFIG_ACPI is not set
+
+#
+# VGA ROM
+#
+CONFIG_NO_VGABIOS=y
+# CONFIG_VGA_GEODEGX2 is not set
+# CONFIG_VGA_GEODELX is not set
+# CONFIG_BUILD_VGABIOS is not set
+
+#
+# Debugging
+#
+CONFIG_DEBUG_LEVEL=8
+CONFIG_DEBUG_SERIAL=y
+CONFIG_DEBUG_SERIAL_PORT=0x3f8
