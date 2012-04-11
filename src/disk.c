@@ -128,6 +128,7 @@ extended_access(struct bregs *regs, struct drive_s *drive_g, u16 command)
     dop.command = command;
     dop.drive_g = drive_g;
     if (dop.lba >= GET_GLOBAL(drive_g->sectors)) {
+dprintf(3, "dop.lba = %llx drive_g->sectors = %llx, dop.command = %x", dop.lba, drive_g->sectors, dop.command);
         warn_invalid(regs);
         disk_ret(regs, DISK_RET_EPARAM);
         return;

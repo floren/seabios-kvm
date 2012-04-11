@@ -52,7 +52,7 @@ virtio_blk_op(struct disk_op_s *op, int write)
             .length	= sizeof(status),
         },
     };
-dprintf(3, "in virtio_blk_op\n");
+//dprintf(3, "in virtio_blk_op\n");
     /* Add to virtqueue and kick host */
     if (write)
         vring_add_buf(vq, sg, 2, 1, 0, 0);
